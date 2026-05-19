@@ -4,6 +4,7 @@ __pycache__/
 venv/
 .env
 .DS_Store
+*.png
 
 # Old starter dataset is not used by the app anymore.
 data/emotion_dataset.csv
