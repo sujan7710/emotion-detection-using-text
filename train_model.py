@@ -29,7 +29,7 @@ def load_dataset() -> pd.DataFrame:
     data = data.dropna(subset=["text", "emotion"]).copy()
     data["text"] = data["text"].astype(str).str.strip()
     data["emotion"] = data["emotion"].astype(str).str.strip().str.lower()
-    data = data[data["text"] != ""]
+    data = data[data["text"] != ""].reset_index(drop=True)
     return data
 
 
@@ -78,12 +78,13 @@ def train_and_save_model() -> Pipeline:
     class_counts = data["emotion"].value_counts()
     can_stratify = len(class_counts) > 1 and class_counts.min() >= 2
 
+    labels = data["emotion"]
     x_train, x_test, y_train, y_test = train_test_split(
         data["text"],
-        data["emotion"],
+        labels,
         test_size=0.2,
         random_state=42,
-        stratify=data["emotion"] if can_stratify else None,
+        stratify=labels if can_stratify else None,
     )
 
     model.fit(x_train, y_train)

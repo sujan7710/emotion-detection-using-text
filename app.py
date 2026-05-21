@@ -21,7 +21,7 @@ st.set_page_config(
 )
 
 
-@st.cache_resource(show_spinner="Training model...")
+@st.cache_resource(show_spinner="Loading model...")
 def load_model():
     if not MODEL_PATH.exists():
         return train_and_save_model()
@@ -30,12 +30,12 @@ def load_model():
 
 def predict_emotion(text: str):
     model = load_model()
-    prediction = model.predict([text])[0]
+    prediction = str(model.predict([text])[0])
 
     probabilities = None
-    if hasattr(model.named_steps["classifier"], "predict_proba"):
+    if hasattr(model, "predict_proba"):
         probability_values = model.predict_proba([text])[0]
-        classes = model.named_steps["classifier"].classes_
+        classes = model.classes_
         probabilities = dict(sorted(zip(classes, probability_values), key=lambda item: item[1], reverse=True))
 
     return prediction, probabilities
@@ -58,8 +58,25 @@ with left_column:
 with right_column:
     st.subheader("Prediction")
 
-    if analyze_clicked and user_text.strip():
-        emotion, probabilities = predict_emotion(user_text.strip())
+    if analyze_clicked:
+        if user_text.strip():
+            text_key = user_text.strip()
+            emotion, probabilities = predict_emotion(text_key)
+            st.session_state["emotion_prediction"] = {
+                "text": text_key,
+                "emotion": emotion,
+                "probabilities": probabilities,
+            }
+        else:
+            st.session_state.pop("emotion_prediction", None)
+            st.warning("Please enter some text first.")
+
+    stored = st.session_state.get("emotion_prediction")
+    current = user_text.strip()
+
+    if stored and stored["text"] == current and current:
+        emotion = stored["emotion"]
+        probabilities = stored["probabilities"]
         emotion_label = emotion.title()
         color = EMOTION_COLORS.get(emotion, "#0f766e")
 
@@ -77,13 +94,14 @@ with right_column:
             st.write("Confidence scores")
             score_data = pd.DataFrame(
                 {
-                    "Emotion": [emotion.title() for emotion in probabilities.keys()],
+                    "Emotion": [label.title() for label in probabilities.keys()],
                     "Confidence": [round(value * 100, 2) for value in probabilities.values()],
                 }
             )
             st.bar_chart(score_data, x="Emotion", y="Confidence", color="#0f766e")
             st.dataframe(score_data, hide_index=True, use_container_width=True)
-    elif analyze_clicked:
-        st.warning("Please enter some text first.")
-    else:
-        st.info("Enter text and click Predict Emotion.")
+    elif not (analyze_clicked and not current):
+        if current:
+            st.caption("Click **Predict Emotion** to analyze this text.")
+        else:
+            st.info("Enter text and click Predict Emotion.")
